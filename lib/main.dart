@@ -2,11 +2,17 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:text_regnization/screens/result_screen.dart';
+import 'package:text_regnization/screens/splash.dart';
 
 void main() {
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent, // transparent status bar
+    statusBarIconBrightness: Brightness.light, // dark text for status bar icons
+  ));
   runApp(const App());
 }
 
@@ -16,13 +22,14 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Flutter Text Recognition',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const MainScreen(),
-    );
+        debugShowCheckedModeBanner: false,
+        title: 'Flutter Text Recognition',
+        theme: ThemeData(
+          fontFamily: 'Poppins',
+        ),
+        home: SplashScreen()
+        // const MainScreen(),
+        );
   }
 }
 
@@ -41,7 +48,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   // Add this controller to be able to control de camera
   CameraController? _cameraController;
-
+  bool isloading = false;
   @override
   void initState() {
     super.initState();
@@ -76,18 +83,28 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _scanImage() async {
+    setState(() {
+      isloading = true;
+    });
     if (_cameraController == null) return;
-
+    setState(() {
+      isloading = false;
+    });
     final navigator = Navigator.of(context);
 
     try {
+      setState(() {
+        isloading = true;
+      });
       final pictureFile = await _cameraController!.takePicture();
 
       final file = File(pictureFile.path);
 
       final inputImage = InputImage.fromFile(file);
       final recognizedText = await textRecognizer.processImage(inputImage);
-
+      setState(() {
+        isloading = false;
+      });
       await navigator.push(
         MaterialPageRoute(
           builder: (BuildContext context) =>
@@ -118,7 +135,27 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   if (snapshot.hasData) {
                     _initCameraController(snapshot.data!);
 
-                    return Center(child: CameraPreview(_cameraController!));
+                    return Center(
+                        child: Padding(
+                      padding: const EdgeInsets.only(left: 10, right: 10),
+                      child: Container(
+                          height: MediaQuery.of(context).size.height / 1.6,
+                          width: MediaQuery.of(context).size.width,
+                          decoration: BoxDecoration(
+                            // color: Colors.amber,
+                            image: DecorationImage(
+                                image: AssetImage('assets/images/scanner.png'),
+                                fit: BoxFit.fill),
+                            // border: Border.all(color: Colors.white),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                                left: 12, right: 12, top: 15, bottom: 15),
+                            child: ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
+                                child: CameraPreview(_cameraController!)),
+                          )),
+                    ));
                   } else {
                     return const LinearProgressIndicator();
                   }
@@ -126,7 +163,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               ),
             Scaffold(
               appBar: AppBar(
-                title: const Text('Text Recognition Sample'),
+                centerTitle: true,
+                backgroundColor: Colors.black,
+                title: const Text(
+                  'Text Recognition',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
               // Set the background to transparent so you can see the camera preview
               backgroundColor: _isPermissionGranted ? Colors.transparent : null,
@@ -136,17 +182,60 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                         Expanded(
                           child: Container(),
                         ),
-                        Container(
-                          padding: const EdgeInsets.only(bottom: 30.0),
-                          child: Center(
-                            child: ElevatedButton(
-                              onPressed: _scanImage,
-                              child: const Text(
-                                'Scan text',
-                                style: TextStyle(color: Colors.black),
-                              ),
-                            ),
-                          ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 20, right: 20),
+                          child: isloading == true
+                              ? Padding(
+                                  padding: const EdgeInsets.only(bottom: 30),
+                                  child: Center(
+                                      child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Text(
+                                        "Loading",
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.normal,
+                                            color: Colors.white),
+                                      ),
+                                      SizedBox(
+                                        width: 10,
+                                      ),
+                                      Image.asset(
+                                        "assets/images/loading.gif",
+                                        height: 20,
+                                        width: 20,
+                                      ),
+                                    ],
+                                  )),
+                                )
+                              : Container(
+                                  height: 80,
+                                  width: MediaQuery.of(context).size.width,
+                                  padding: const EdgeInsets.only(bottom: 30.0),
+                                  child: ElevatedButton(
+                                    onPressed: isloading == true
+                                        ? null
+                                        : () {
+                                            _scanImage();
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                      foregroundColor: Color(0xfffa8c4eb),
+                                      backgroundColor:
+                                          Color(0xfffa8c4eb), // Text color
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                            12.0), // Rounded corners
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Scan text',
+                                      style: TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
                         ),
                       ],
                     )
